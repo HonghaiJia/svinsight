@@ -29,32 +29,31 @@ class DlSchd():
         '''计算指定时间粒度下特定子帧的bler,按照传输方案分别计算
 
             Args:
-                airtime_bin_size：统计粒度，默认为1s
+                time_bin：统计粒度，默认为1s
                 slot: 255(不区分子帧), <20(特定slot)
             Returns：
                 bler， DataFrame格式，列为传输方案，行为时间
         '''
         
-        ack_cols = ['LocalTime', 'ACK.u8AckInfo']
+        ack_cols = ['LocalTime', 'ACK.u8AckInfo', 'ACK.u32DemTime']
         rlt = pd.DataFrame()
         for data in self._log.gen_of_cols(ack_cols, format_time=True):
-            data = data.dropna(how='any').astype(np.uint32)
-            data = data.reindex(data[ack_cols[0]])[ack_cols[1]]
-            if slot < 20:
-                data = data[data[ack_cols[0]]%256 == slot]
+            data = data.dropna(how='any')
             if 0 == data.size:
                 continue
-            
-            cnt = data[ack_cols[1]].groupby(data[ack_cols[0]] // (airtime_bin_size*25600)).apply(
-                lambda x: x.value_counts()).unstack(level=1)
-            rlt = rlt.add(cnt, fill_value=0)
+            rlt = pd.concat([rlt, data])
 
-        def func(data):
-            temp = pd.Series()
-            temp.at['bler'] = (data[0] + data[2]) / (data[0] + data[1] + data[2])
-            return temp
+        rlt = rlt.set_index(ack_cols[0])
+        rlt = rlt[rlt[ack_cols[2]]%256 == slot] if slot < 20 else rlt
+        rlt = rlt[ack_cols[1]]
+        rlt.name = 'bler'
 
-        return rlt.reindex(columns=[0, 1, 2]).fillna(0).apply(func, axis=1)
+        def bler(data):
+            vc = data.value_counts().reindex([0,1,2],fill_value=0)
+            total = vc[0] + vc[1] + vc[2]
+            return (vc[0] + vc[2]) * 100 / total if total != 0 else (vc[0] + vc[2]) * 100 / (total + 1)
+
+        return rlt.resample(str(time_bin)+'S').apply(bler)
 
     def show_mimo(self, airtime_bin_size=1):
         '''图形化输出MIMO自适应信息

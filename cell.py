@@ -22,11 +22,11 @@ class Cell(object):
         self._cellid = cellid
         self._log = log
 
-        dl_log = log.get_schd_logfile(const.NR_FILE_DLSCHD, cellid=cellid)
+        dl_log = log.get_dlschd_logfile(cellid=cellid)
         if dl_log is not None:
             self._dl = DlSchdCell(dl_log, self)
 
-        ul_log = log.get_schd_logfile(const.NR_FILE_ULSCHD, cellid=cellid)
+        ul_log = log.get_ulschd_logfile(cellid=cellid)
         if ul_log is not None:
             self._ul = UlSchdCell(ul_log, self)
 
@@ -70,8 +70,8 @@ class Cell(object):
             return '所有UEGID：{uegids}. 请使用get_ue(uegid)获取对应的UE实例'.format(uegids=self._uegids)
 
         if uegid in self._uegids:
-            dllog = self.log.get_schd_logfile(const.NR_FILE_DLSCHD, self.cellid, uegid)
-            ullog = self.log.get_schd_logfile(const.NR_FILE_ULSCHD, self.cellid, uegid)
+            dllog = self.log.get_dlschd_logfile(self.cellid, uegid)
+            ullog = self.log.get_ulschd_logfile(self.cellid, uegid)
             self._ues[uegid] = Ue(ullog, dllog, self, uegid)
             return self._ues[uegid]
         else:

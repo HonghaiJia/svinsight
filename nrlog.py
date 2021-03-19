@@ -42,9 +42,8 @@ class NrLog(object):
                 if logfile.lines == 0:
                     continue
                 self._logfiles[filetype] = logfile
-                if filetype == const.NR_FILE_DLSCHD or filetype == const.NR_FILE_ULSCHD:
-                    self._cellids = set.union(self._cellids, self._logfiles[filetype].cellids)
-                    self._cell_and_ue_ids = pd.concat([self._logfiles[filetype]._cell_and_ue_ids, self._cell_and_ue_ids]).drop_duplicates()
+                self._cellids = set.union(self._cellids, logfile.cellids)
+                self._cell_and_ue_ids = pd.concat([logfile._cell_and_ue_ids, self._cell_and_ue_ids]).drop_duplicates()
 
     @property
     def directory(self):
@@ -117,8 +116,8 @@ class NrLog(object):
                 return '非法cellid, uegId值，此小区或ue不存在'
         else:
             if (uegid == self._cell_and_ue_ids['UEGID']).any():
-                dllog = self._get_schd_logfile(const.NR_FILE_DLSCHD, None, uegid)
-                ullog = self._get_schd_logfile(const.NR_FILE_ULSCHD, None, uegid)
+                dllog = self._get_dlschd_logfile(uegid=uegid)
+                ullog = self._get_ulschd_logfile(uegid=uegid)
                 self._ues[uegid] = Ue(ullog, dllog, None, uegid)
                 return self._ues[uegid]
             else:
@@ -200,8 +199,8 @@ class NrFile(object):
         cols = ['LocalTime']
         for data in self.gen_of_cols(cols, format_time=True):
             if len(data.index) == 0:
-                self._lines = 0
-                return
+                self._lines += 0
+                continue
             self._lines = self._lines + len(data.index)
             if self._times[0] == -1:
                 self._times[0] = data.iat[0, 0]
@@ -210,8 +209,7 @@ class NrFile(object):
         cols = ['CellId', 'UEGID']
         for data in self.gen_of_cols(cols):
             if len(data.index) == 0:
-                self._lines = 0
-                return
+                continue
             self._cellids = set.union(self._cellids, set(data[cols[0]]))
             self._uegids = set.union(self._uegids, set(data[cols[1]]))
             self._cell_and_ue_ids = pd.concat([data[cols].drop_duplicates(), self._cell_and_ue_ids]).drop_duplicates()
@@ -332,7 +330,7 @@ class NrFile(object):
         cols = cols.append(time_col) if time_col not in cols else cols
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
             data = data.reindex(data[time_col]).drop(time_col)
-            data = data.resample(Second(time_bin),how='mean')  
+            data = data.resample(str(time_bin)+'S').apply('mean')  
             rlt = pd.concat([rlt, data])
         return rlt
 
@@ -367,7 +365,7 @@ class NrFile(object):
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
             data = data.reindex(data[time_col]).drop(time_col)
-            data = data.resample(Second(time_bin),how='min') 
+            data = data.resample(str(time_bin)+'S').apply('min') 
             rlt = pd.concat([rlt, data])
         return rlt
         
@@ -385,7 +383,7 @@ class NrFile(object):
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
             data = data.reindex(data[time_col]).drop(time_col)
-            data = data.resample(Second(time_bin),how='max') 
+            data = data.resample(str(time_bin)+'S').apply('max') 
             rlt = pd.concat([rlt, data])
         return rlt
 
@@ -401,7 +399,7 @@ class NrFile(object):
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
             data = data.reindex(data[time_col]).drop(time_col)
-            data = data.resample(Second(time_bin),how='cnt') 
+            data = data.resample(str(time_bin)+'S').apply('cnt') 
             rlt = pd.concat([rlt, data])
         return cnt
 
@@ -481,7 +479,7 @@ class NrFile(object):
         hist.loc[0, :].plot(kind='bar', xlim=xlim)
 
 if __name__ == '__main__' :
-    svlog = NrLog(r"D:\svlog")
-#    ue = svlog.get_ue(0)
-#    dl = ue.dl
-#    dl.bler_of_slot()
+    svlog = NrLog(r"D:\问题分析\FAPI+EI+200UE")
+    cell = svlog.get_cell(1)
+    dl = cell.dl
+    dl.bler_of_slot()
