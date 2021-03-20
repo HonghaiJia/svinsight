@@ -116,8 +116,8 @@ class NrLog(object):
                 return '非法cellid, uegId值，此小区或ue不存在'
         else:
             if (uegid == self._cell_and_ue_ids['UEGID']).any():
-                dllog = self._get_dlschd_logfile(uegid=uegid)
-                ullog = self._get_ulschd_logfile(uegid=uegid)
+                dllog = self.get_dlschd_logfile(uegid=uegid)
+                ullog = self.get_ulschd_logfile(uegid=uegid)
                 self._ues[uegid] = Ue(ullog, dllog, None, uegid)
                 return self._ues[uegid]
             else:
@@ -410,7 +410,7 @@ class NrFile(object):
         rlt = rlt.resample(str(time_bin)+'S').apply('cnt') 
         return rlt
 
-    def hist_of_col(self, col, time_bin=1, ratio=False, filters=None):
+    def value_count_of_col(self, col, time_bin=1, ratio=False, filters=None):
         '''按照时间粒度计算指定列的直方图数据
 
             ratio: 是否计算比例, 默认Ratio为True
@@ -433,8 +433,19 @@ class NrFile(object):
         rlt.columns.name = col_name
         return rlt
 
+    def hist_of_col(self, col, bins=10, normed=False, filters=None):
+        '''计算指定列的直方图数据
+
+            normed: 是否计算比例, False
+            filters：滤波条件，字典格式{‘列名0’：值， ‘列名1’：值...}
+        '''
+        rlt = pd.DataFrame()
+        for data in self.gen_of_cols(col, val_filter=filters, format_time=False):
+            rlt = pd.concat([rlt, data])
+        return rlt.hist(bins=bins, normed=normed)
+
 if __name__ == '__main__' :
-    svlog = NrLog(r"D:\问题分析\FAPI+EI+200UE")
+    svlog = NrLog(r"D:\问题分析\高通RLC\20210312")
     cell = svlog.get_cell(1)
     dl = cell.dl
-    dl.schdfail_reasons()
+    #dl.schdfail_reasons()

@@ -115,7 +115,7 @@ class DlSchd():
                 所有失败原因的总数以及所占比例
         '''
         col_name = ['SCHD_FAIL_RSN.u32UeSchdFailRsn']
-        return self._log.hist_of_col(col_name, time_bin=time_bin)
+        return self._log.value_count_of_col(col_name, time_bin=time_bin)
 
     def throuput(self, time_bin=1):
         ''' 输出流量图
@@ -214,3 +214,21 @@ class DlSchdUe(DlSchd):
     def get_idx_of_lastschd(self, curtime):
         '''距离当前时间往前的最近一次调度索引'''
         return self._log.get_idx_of_last_cols(curtime, ['SCHD.u8HarqId'], how='all')
+    
+    def pucch_pc(self, fmt):
+        cols = [
+        'PUCCH_PC.format', 
+        'PUCCH_PC.rptSinr', 
+        #'PUCCH_PC.rptSinrAdj', 
+        #'PUCCH_PC.FilterSinr', 
+        'PUCCH_PC.rptNi', 
+        'PUCCH_PC.rptAnt0Pwr', 
+        'PUCCH_PC.rptAnt1Pwr']
+        
+        rlt = pd.DataFrame()
+        for data in self._log.gen_of_cols(cols):
+            data = data[data[cols[0]]==fmt]
+            rlt = pd.concat([rlt, data[cols[1:]]])
+        
+        return rlt
+

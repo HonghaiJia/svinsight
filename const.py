@@ -1,13 +1,5 @@
 # coding=utf-8
 
-# 聚合函数
-AGG_FUNC = ('sum', 'mean', 'max', 'min', 'count')
-AGG_FUNC_SUM = AGG_FUNC[0]
-AGG_FUNC_MEAN = AGG_FUNC[1]
-AGG_FUNC_CNT = AGG_FUNC[4]
-AGG_FUNC_MIN = AGG_FUNC[3]
-AGG_FUNC_MAX = AGG_FUNC[2]
-
 # NR调度失败原因
 NR_SCHD_FAIL_RSNS = ('cce_input_param', 'cce_not_enough', 'cce_position_collision', 'cce_pwr_limit',
                       'alloc_harqproc_fail', 'alloc_harqid_fail', 'alloc_rb_fail', 'retx_retx_rbnum_different',
