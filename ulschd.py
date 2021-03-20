@@ -276,20 +276,36 @@ class UlSchd():
         rlt = rlt * 8 / 1000
         rlt.plot(ax=ax, kind='line', style='ko--')
         return
+        
+    def bler_of_slot(self, time_bin=1, slot = 255):
+        '''计算指定时间粒度下特定子帧的bler,按照传输方案分别计算
 
-    def bler_of_slot(self):
-        '''不同slot的bler'''
-        cols = ['CRCI.u8AckInfo', 'CRCI.u32DemTime']
-        ack_data = pd.DataFrame()
-        for data in self._log.gen_of_cols(cols):
-            data = data.dropna(how='any').astype(np.uint32)
-            grouped = data[cols[0]].groupby(data[cols[1]] % 256).apply(lambda x: x.value_counts())\
-                .unstack(0, fill_value=0).reindex(index=np.arange(20), fill_value=0)
-            ack_data = ack_data.add(grouped, fill_value=0)
-        bler_data = ack_data.apply(lambda x: (x[0]+x[2])/max(x.sum(), 1))
-        bler_data.index.name = 'Slot'
-        bler_data.name = 'Bler_of_Slot'
-        return bler_data
+            Args:
+                time_bin：统计粒度，默认为1s
+                slot: 255(不区分子帧), <20(特定slot)
+            Returns：
+                bler， DataFrame格式，列为传输方案，行为时间
+        '''
+        
+        ack_cols = ['LocalTime', 'CRCI.u8AckInfo', 'CRCI.u32DemTime']
+        rlt = pd.DataFrame()
+        for data in self._log.gen_of_cols(ack_cols, format_time=True):
+            data = data.dropna(how='any')
+            if 0 == data.size:
+                continue
+            rlt = pd.concat([rlt, data])
+
+        rlt = rlt.set_index(ack_cols[0]).astype(int)
+        rlt = rlt[rlt[ack_cols[2]]%256 == slot] if slot < 20 else rlt
+        rlt = rlt[ack_cols[1]]
+        rlt.name = 'bler_of_slot'
+
+        def bler(data):
+            vc = data.value_counts().reindex([0,1,2],fill_value=0)
+            total = vc[0] + vc[1] + vc[2]
+            return (vc[0] + vc[2]) * 100 / total if total != 0 else (vc[0] + vc[2]) * 100 / (total + 1)
+
+        return rlt.resample(str(time_bin)+'S').apply(bler)
 
     def find_selfmaintain(self):
         '''查找是否存在自维护, 并输出相关信息'''

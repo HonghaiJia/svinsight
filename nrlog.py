@@ -327,11 +327,13 @@ class NrFile(object):
         
         rlt = pd.DataFrame()
         time_col = 'LocalTime'
-        cols = cols.append(time_col) if time_col not in cols else cols
+        if time_col not in cols:
+            cols.append(time_col) 
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            data = data.reindex(data[time_col]).drop(time_col)
-            data = data.resample(str(time_bin)+'S').apply('mean')  
             rlt = pd.concat([rlt, data])
+
+        rlt = rlt.set_index(data[time_col]).drop(time_col)
+        rlt = rlt.resample(str(time_bin)+'S').apply('mean')  
         return rlt
 
     def sum_of_cols(self, cols, time_bin=1, filters=None):
@@ -343,13 +345,15 @@ class NrFile(object):
                 filters：滤波条件，字典格式{‘列名0’：值， ‘列名1’：值...}
         '''
         time_col = 'LocalTime'
-        cols = cols.append(time_col) if time_col not in cols else cols
+        if time_col not in cols:
+            cols.append(time_col) 
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            data = data.reindex(data[time_col]).drop(time_col)
-            data = data.resample(Second(time_bin),how='sum') 
             rlt = pd.concat([rlt, data])
-        return rlt.dropna()
+
+        rlt = rlt.set_index(time_col)
+        rlt = rlt.resample(str(time_bin)+'S').apply('sum') 
+        return rlt
         
     def min_of_cols(self, cols, time_bin=1, filters=None):
         '''按照时间粒度计算指定列的最小值
@@ -361,12 +365,13 @@ class NrFile(object):
                 time_col: 聚合的时间列名，默认‘AirTime’
         '''
         time_col = 'LocalTime'
-        cols = cols.append(time_col) if time_col not in cols else cols
+        if time_col not in cols:
+            cols.append(time_col) 
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            data = data.reindex(data[time_col]).drop(time_col)
-            data = data.resample(str(time_bin)+'S').apply('min') 
             rlt = pd.concat([rlt, data])
+        rlt = rlt.set_index(time_col)
+        rlt = rlt.resample(str(time_bin)+'S').apply('min') 
         return rlt
         
     def max_of_cols(self, cols, time_bin=1, filters=None):
@@ -379,107 +384,57 @@ class NrFile(object):
                 time_col: 聚合的时间列名，默认‘AirTime’
         '''
         time_col = 'LocalTime'
-        cols = cols.append(time_col) if time_col not in cols else cols
+        if time_col not in cols:
+            cols.append(time_col) 
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            data = data.reindex(data[time_col]).drop(time_col)
-            data = data.resample(str(time_bin)+'S').apply('max') 
             rlt = pd.concat([rlt, data])
+        rlt = rlt.set_index(time_col)
+        rlt = rlt.resample(str(time_bin)+'S').apply('max') 
         return rlt
 
-    def cnt_of_cols(self, cols, airtime_bin_size, filters=None):
+    def cnt_of_cols(self, cols, time_bin, filters=None):
         '''按照时间粒度计算指定列的次数
 
             Args:
-                airtime_bin_size：时间粒度（s), 0表示不区分时间粒度
+                time_bin：时间粒度（s), 0表示不区分时间粒度
                 filters：滤波条件，字典格式{‘列名0’：值， ‘列名1’：值...}
         '''
         time_col = 'LocalTime'
-        cols = cols.append(time_col) if time_col not in cols else cols
+        if time_col not in cols:
+            cols.append(time_col) 
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            data = data.reindex(data[time_col]).drop(time_col)
-            data = data.resample(str(time_bin)+'S').apply('cnt') 
             rlt = pd.concat([rlt, data])
-        return cnt
+        rlt = rlt.set_index(time_col)
+        rlt = rlt.resample(str(time_bin)+'S').apply('cnt') 
+        return rlt
 
-    def hist_of_col(self, col, time_bin, ratio=True, filters=None):
+    def hist_of_col(self, col, time_bin=1, ratio=False, filters=None):
         '''按照时间粒度计算指定列的直方图数据
 
             ratio: 是否计算比例, 默认Ratio为True
             time_bin：时间粒度（s)
             filters：滤波条件，字典格式{‘列名0’：值， ‘列名1’：值...}
         '''
-        cols = ['LocalTime', col]
+        time_col = 'LocalTime'
+        col_name = col[0]
+        if time_col not in col:
+            col.append(time_col) 
         rlt = pd.DataFrame()
-        for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            group_data = data[cols[1]].groupby(data[cols[0]]).apply(lambda x: x.value_counts())
-            if 0 == group_data.size:
-                continue
-            group_data = group_data.unstack(level=1, fill_value=0)
-            rlt = rlt.add(group_data, fill_value=0)
-            if ratio:
-                rlt = rlt.apply(lambda x: x/x.sum(), axis=1)
-        rlt.columns = rlt.columns.map(lambda x: np.uint32(x))
-        rlt = rlt.reindex(columns=np.sort(rlt.columns))
+        for data in self.gen_of_cols(col, val_filter=filters, format_time=True):
+            rlt = pd.concat([rlt, data])
+
+        rlt = rlt.set_index(time_col)
+        rlt = rlt[col_name]
+        rlt = rlt.resample(str(time_bin)+'S').apply(lambda x: x.value_counts()).unstack()
+        if ratio:
+            rlt = rlt.apply(lambda x: x/x.sum(), axis=1)
+        rlt.columns.name = col_name
         return rlt
-
-    def show_trend(self, col, agg_func, time_bin, mean_by=None, ax=None, filters=None, y_label=None):
-        '''指定列的时间趋势图
-
-            Args：
-                col：待分析列名
-                agg_func:聚合函数{'sum', 'mean', 'cnt'}
-                time_bin：时间粒度s
-                ylabel：y轴标签
-                mean_by: 'cnt'
-                ax：坐标，如果为none，在新的figure上画图
-                filters:限定条件，字典格式{‘col_name’:value, ..}
-        '''
-        if agg_func == AGG_FUNC_SUM:
-            data = self.sum_of_cols([col], time_bin, filters=filters)
-        elif agg_func == AGG_FUNC_MEAN:
-            data = self.mean_of_cols([col], time_bin, filters=filters)
-        elif agg_func == AGG_FUNC_CNT:
-            data = self.cnt_of_cols([col], time_bin, filters=filters)
-        elif agg_func == AGG_FUNC_MIN:
-            data = self.min_of_cols([col], time_bin, filters=filters)
-        elif agg_func == AGG_FUNC_MAX:
-            data = self.max_of_cols([col], time_bin, filters=filters)
-        else:
-            return
-
-        if ax is None:
-            ax = plt.subplots(1, 1)[1]
-        xlabel = 'time/{bin}s'.format(bin=time_bin)
-        if y_label is None:
-            ax.set_ylabel(col)
-        else:
-            ax.set_ylabel(y_label)
-            
-        if data[col].size:
-            data[col].index.name = xlabel
-            data[col].plot(ax=ax, kind='line', style='ko--')
-
-    def show_hist(self, col, xlim=None, ax=None, ratio=True):
-        '''指定列的时间直方图
-
-            Args：
-                col： 待分析列
-                xlim：x轴范围，如果为None,则自适应
-                ax：坐标，如果为none，在新的figure上画图
-                ratio：画比例，默认为True
-        '''
-        if ax is None:
-            ax = plt.subplots(1, 1)[1]
-        ax.set_xlabel(col)
-        ylabel = 'Ratio' if ratio else 'Cnt'
-        ax.set_ylabel(ylabel)
-        hist = self.hist_of_col(col, airtime_bin_size=0, ratio=ratio)
-        hist.loc[0, :].plot(kind='bar', xlim=xlim)
 
 if __name__ == '__main__' :
     svlog = NrLog(r"D:\问题分析\FAPI+EI+200UE")
     cell = svlog.get_cell(1)
     dl = cell.dl
-    dl.bler_of_slot()
+    dl.schdfail_reasons()
