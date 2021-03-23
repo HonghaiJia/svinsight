@@ -214,6 +214,17 @@ class DlSchdUe(DlSchd):
     def get_idx_of_lastschd(self, curtime):
         '''距离当前时间往前的最近一次调度索引'''
         return self._log.get_idx_of_last_cols(curtime, ['SCHD.u8HarqId'], how='all')
+
+    def pucch_sinr_blow(self, fmt, thresh=-5, time_bin=1):
+        cols = ['LocalTime', 'PUCCH_PC.format', 'PUCCH_PC.rptSinr']
+
+        rlt = pd.DataFrame()
+        for data in self._log.gen_of_cols(cols, format_time=True):
+            data = data[(data[cols[1]]==fmt) & (data[cols[2]] <= thresh)]
+            rlt = pd.concat([rlt, data])
+
+        rlt = rlt.set_index(cols[0])
+        return rlt[cols[2]].resample(str(time_bin)+'S').apply('count') 
     
     def pucch_pc(self, fmt):
         cols = [
