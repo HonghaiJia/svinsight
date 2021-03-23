@@ -221,14 +221,15 @@ class DlSchdUe(DlSchd):
         'PUCCH_PC.rptSinr', 
         #'PUCCH_PC.rptSinrAdj', 
         #'PUCCH_PC.FilterSinr', 
-        'PUCCH_PC.rptNi', 
-        'PUCCH_PC.rptAnt0Pwr', 
-        'PUCCH_PC.rptAnt1Pwr']
+        #'PUCCH_PC.rptNi', 
+        #'PUCCH_PC.rptAnt0Pwr', 
+        #'PUCCH_PC.rptAnt1Pwr'
+        ]
         
         rlt = pd.DataFrame()
         for data in self._log.gen_of_cols(cols):
             data = data[data[cols[0]]==fmt]
             rlt = pd.concat([rlt, data[cols[1:]]])
-        
+        #rlt.plot(figsize=(100,50))
         return rlt
 

@@ -6,6 +6,7 @@ import os
 import const
 from ue import Ue
 from cell import Cell
+from util.ei2csv import ei2csv
 
 class NrLog(object):
     ''' NR调度模块Log分析接口类
@@ -35,10 +36,31 @@ class NrLog(object):
         self._cellids = set()
         self._ues = {}
         self._cell_and_ue_ids = pd.DataFrame()
+
+        eifiles = pd.Series(np.sort(os.listdir(self._directory)))
+        eifiles = list(eifiles[eifiles.apply(lambda x: x.endswith(r'.ei'))])
+
+        for i, name in enumerate(eifiles):   
+            csvname = name.rsplit('.')[0] + r'.csv'
+            if csvname in os.listdir(self._directory):
+                continue
+
+            if self._time_interval is not None:
+                time = pd.to_datetime(name.rsplit('.')[0].rsplit('_')[-1])
+                if time > self._time_interval[1]:
+                    continue
+                if time < self._time_interval[0] and i < len(eifiles):
+                    nextname = eifiles[i+1]
+                    time = pd.to_datetime(nextname.rsplit('.')[0].rsplit('_')[-1])
+                    if time < self._time_interval[0]:
+                        continue
+
+            ei2csv(self._directory + '\\' + name)
+
         for filetype in const.NR_FILE_TYPES:
             filenames = self._filenames_of_type(filetype)
             if filenames:
-                logfile = NrFile(filetype, directory, filenames)
+                logfile = NrFile(filetype, directory, filenames, time_interval=self._time_interval)
                 if logfile.lines == 0:
                     continue
                 self._logfiles[filetype] = logfile
@@ -58,15 +80,22 @@ class NrLog(object):
                 文件名列表
         '''
         names_of_filetype = []
-        for name in np.sort(os.listdir(self._directory)):
-            if not name.endswith(r'.csv'):
-                continue
-            if -1 == name.find(filetype):
-                continue
+
+        csvfiles = pd.Series(np.sort(os.listdir(self._directory)))
+        csvfiles = csvfiles[csvfiles.apply(lambda x: x.endswith(r'.csv'))]
+        csvfiles = csvfiles[csvfiles.apply(lambda x: -1 != x.find(filetype))]
+        csvfiles = list(csvfiles)
+
+        for i, name in enumerate(csvfiles):
             if self._time_interval is not None:
                 time = pd.to_datetime(name.rsplit('.')[0].rsplit('_')[-1])
-                if time < self._time_interval[0] or time > self._time_interval[1]:
+                if time > self._time_interval[1]:
                     continue
+                if time < self._time_interval[0] and i < len(csvfiles):
+                    nextname = csvfiles[i+1]
+                    time = pd.to_datetime(nextname.rsplit('.')[0].rsplit('_')[-1])
+                    if time < self._time_interval[0]:
+                        continue 
             names_of_filetype.append(name)
         return names_of_filetype
 
@@ -146,38 +175,40 @@ class NrLog(object):
         if uegid:
             id_filter.update({'UEGID': [uegid]})
          
-        return NrFile(filetype, self._directory, self._filenames_of_type(filetype), id_filter=id_filter)
+        return NrFile(filetype, self._directory, self._filenames_of_type(filetype), id_filter=id_filter, time_interval=self._time_interval)
 
     def get_dlschd_logfile(self, cellid=None, uegid=None):
         '''获取Log文件实例'''
         
         filetype = const.NR_FILE_DLSCHD
-        assert(filetype in self._logfiles)         
+        if filetype not in self._logfiles:
+            return None         
         id_filter = {}     
         if cellid:
             id_filter.update({'CellId': [cellid]})     
         if uegid:
             id_filter.update({'UEGID': [uegid]})
          
-        return NrFile(filetype, self._directory, self._filenames_of_type(filetype), id_filter=id_filter)
+        return NrFile(filetype, self._directory, self._filenames_of_type(filetype), id_filter=id_filter, time_interval=self._time_interval)
 
     def get_ulschd_logfile(self, cellid=None, uegid=None):
         '''获取Log文件实例'''
         
         filetype = const.NR_FILE_ULSCHD
-        assert(filetype in self._logfiles)         
+        if filetype not in self._logfiles:
+            return None          
         id_filter = {}     
         if cellid:
             id_filter.update({'CellId': [cellid]})     
         if uegid:
             id_filter.update({'UEGID': [uegid]})
          
-        return NrFile(filetype, self._directory, self._filenames_of_type(filetype), id_filter=id_filter)
+        return NrFile(filetype, self._directory, self._filenames_of_type(filetype), id_filter=id_filter, time_interval=self._time_interval)
         
 class NrFile(object):
     '''Log文件接口类'''
 
-    def __init__(self, filetype, directory, files, id_filter=None):
+    def __init__(self, filetype, directory, files, id_filter=None, time_interval=None):
         '''初始化Log实例,把所有Log按照类型分类
 
            Args:
@@ -195,6 +226,7 @@ class NrFile(object):
         self._cellids = set()
         self._uegids = set()
         self._cell_and_ue_ids = pd.DataFrame()
+        self._time_interval = time_interval
 
         cols = ['LocalTime']
         for data in self.gen_of_cols(cols, format_time=True):
@@ -293,6 +325,9 @@ class NrFile(object):
                 datestr = file.rsplit('.')[0].rsplit('_')[-1]
                 self._format_time(data, datestr)
 
+            if 'LocalTime' in cols and self._time_interval is not None:
+                data = data[(self._time_interval[0] <= data['LocalTime']) & (data['LocalTime'] <= self._time_interval[1])]
+
             if not filters:
                 yield data
                 continue
@@ -332,7 +367,7 @@ class NrFile(object):
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
             rlt = pd.concat([rlt, data])
 
-        rlt = rlt.set_index(data[time_col]).drop(time_col)
+        rlt = rlt[cols].set_index(data[time_col]).drop(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('mean')  
         return rlt
 
@@ -351,7 +386,7 @@ class NrFile(object):
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
             rlt = pd.concat([rlt, data])
 
-        rlt = rlt.set_index(time_col)
+        rlt = rlt[cols].set_index(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('sum') 
         return rlt
         
@@ -370,7 +405,7 @@ class NrFile(object):
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
             rlt = pd.concat([rlt, data])
-        rlt = rlt.set_index(time_col)
+        rlt = rlt[cols].set_index(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('min') 
         return rlt
         
@@ -389,7 +424,7 @@ class NrFile(object):
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
             rlt = pd.concat([rlt, data])
-        rlt = rlt.set_index(time_col)
+        rlt = rlt[cols].set_index(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('max') 
         return rlt
 
@@ -406,8 +441,8 @@ class NrFile(object):
         rlt = pd.DataFrame()
         for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
             rlt = pd.concat([rlt, data])
-        rlt = rlt.set_index(time_col)
-        rlt = rlt.resample(str(time_bin)+'S').apply('cnt') 
+        rlt = rlt[cols].set_index(time_col)
+        rlt = rlt.resample(str(time_bin)+'S').apply('count') 
         return rlt
 
     def value_count_of_col(self, col, time_bin=1, ratio=False, filters=None):
@@ -445,7 +480,8 @@ class NrFile(object):
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :
-    svlog = NrLog(r"D:\问题分析\高通RLC\20210312")
-    cell = svlog.get_cell(1)
-    dl = cell.dl
+    svlog = NrLog(r"D:\sv", time_interval=['20210323033800', '20210323033900'])
+    #cell = svlog.get_cell(1)
+    ue3 = svlog.get_ue(3)
+    dl = ue3.dl
     #dl.schdfail_reasons()
