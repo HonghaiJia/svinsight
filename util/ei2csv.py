@@ -4,7 +4,7 @@ import os
 import os.path
 
 dll = CDLL(r'D:\svinsight\util\EI_FileProc.dll')
-handle = dll.InitEnbMonitorThreadHandle()
+#handle = dll.InitEnbMonitorThreadHandle()
 
-def ei2csv(filename):
-    dll.ConvertFile(create_string_buffer(bytes(filename, encoding='utf8')), handle)
+def ei2csv(*filename):
+    dll.ConvertFile(create_string_buffer(bytes(filename[0], encoding='utf8')), dll.InitEnbMonitorThreadHandle())

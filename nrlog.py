@@ -4,6 +4,7 @@ import pandas as pd
 import datetime
 import os
 import const
+import threading
 from ue import Ue
 from cell import Cell
 from util.ei2csv import ei2csv
@@ -49,13 +50,13 @@ class NrLog(object):
                 time = pd.to_datetime(name.rsplit('.')[0].rsplit('_')[-1])
                 if time > self._time_interval[1]:
                     continue
-                if time < self._time_interval[0] and i < len(eifiles):
+                if time < self._time_interval[0] and i+1 < len(eifiles):
                     nextname = eifiles[i+1]
                     time = pd.to_datetime(nextname.rsplit('.')[0].rsplit('_')[-1])
                     if time < self._time_interval[0]:
                         continue
-
-            ei2csv(self._directory + '\\' + name)
+            thread = threading.Thread(target=ei2csv, args = (self._directory + '\\' + name))
+            thread.start()
 
         for filetype in const.NR_FILE_TYPES:
             filenames = self._filenames_of_type(filetype)
@@ -91,7 +92,7 @@ class NrLog(object):
                 time = pd.to_datetime(name.rsplit('.')[0].rsplit('_')[-1])
                 if time > self._time_interval[1]:
                     continue
-                if time < self._time_interval[0] and i < len(csvfiles):
+                if time < self._time_interval[0] and i+1 < len(csvfiles):
                     nextname = csvfiles[i+1]
                     time = pd.to_datetime(nextname.rsplit('.')[0].rsplit('_')[-1])
                     if time < self._time_interval[0]:
@@ -480,9 +481,10 @@ class NrFile(object):
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :
-    svlog = NrLog(r"D:\sv", time_interval=['20210323033700', '20210323033900'])
+    svlog = NrLog(r"D:\sv\20210324")
+    #svlog = NrLog(r"D:\sv\20210324", time_interval=['20210323221630', '20210323221636'])
     #svlog = NrLog(r"D:\sv")
     #cell = svlog.get_cell(1)
-    ue3 = svlog.get_ue(3)
-    dl = ue3.dl
+    #ue3 = svlog.get_ue(3)
+    #dl = ue3.dl
     ##dl.schdfail_reasons()
