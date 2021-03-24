@@ -480,7 +480,7 @@ class NrFile(object):
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :
-    svlog = NrLog(r"D:\sv", time_interval=['20210323033500', '20210323034500'])
+    svlog = NrLog(r"D:\sv", time_interval=['20210323033700', '20210323033900'])
     #svlog = NrLog(r"D:\sv")
     #cell = svlog.get_cell(1)
     ue3 = svlog.get_ue(3)

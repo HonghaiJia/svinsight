@@ -229,18 +229,22 @@ class DlSchdUe(DlSchd):
     def pucch_pc(self, fmt):
         cols = [
         'PUCCH_PC.format', 
+        'SCHD.u8Tpc',
         'PUCCH_PC.rptSinr', 
         #'PUCCH_PC.rptSinrAdj', 
-        #'PUCCH_PC.FilterSinr', 
+        'PUCCH_PC.FilterSinr', 
         #'PUCCH_PC.rptNi', 
         #'PUCCH_PC.rptAnt0Pwr', 
         #'PUCCH_PC.rptAnt1Pwr'
         ]
+
+        tpc_table = [-1, 0, 1, 3]
         
         rlt = pd.DataFrame()
         for data in self._log.gen_of_cols(cols):
             data = data[data[cols[0]]==fmt]
+            data[cols[1]] = data[cols[1]].apply(lambda x: tpc_table[int(x)] if x <=3 else 0)
             rlt = pd.concat([rlt, data[cols[1:]]])
-        #rlt.plot(figsize=(100,50))
+        #rlt.plot(subplots=True)
         return rlt
 
