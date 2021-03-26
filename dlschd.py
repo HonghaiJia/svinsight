@@ -79,6 +79,48 @@ class DlSchd():
             rlt = rlt.apply(lambda x: x/x.sum(), axis=1)
         rlt.index.name = 'mimo_layers'
         return rlt
+
+    def rpt_csi(self, ri=1, time_bin=1):
+        '''MIMO自适应layer统计
+
+            Args:
+                ri: 上报的RI
+                time_bin：统计粒度，默认为1s
+            Returns：
+                趋势图：x轴为时间粒度，y轴为各传输方案比例
+        '''
+        cols = ['LocalTime','CSI.u8RptRI', 'CSI.u8RptWideCqi']
+        rlt = pd.DataFrame()
+        val_filter = {cols[1]: [ri]}
+        for data in self._log.gen_of_cols(cols, format_time=True, val_filter=val_filter):
+            if 0 == data.size:
+                continue
+            rlt = pd.concat([rlt, data])
+
+        rlt = rlt.set_index(cols[0])
+        rlt = rlt[cols[1:]]
+        return rlt.resample(str(time_bin)+'S').apply('count')
+
+    def amc(self, layer=1, time_bin=1):
+        '''amc 统计
+
+            Args:
+                layer: 调度RI
+                time_bin：统计粒度，默认为1s
+            Returns：
+                趋势图：x轴为时间粒度，y轴为各传输方案比例
+        '''
+        cols = ['LocalTime', 'SCHD.u8Layers', 'AMC.s16InnerSinr', 'AMC.s16DeltaSinr', 'AMC.u8SchdMcs']
+        rlt = pd.DataFrame()
+        val_filter = {cols[1]: [layer]}
+        for data in self._log.gen_of_cols(cols, format_time=True, val_filter=val_filter):
+            if 0 == data.size:
+                continue
+            rlt = pd.concat([rlt, data])
+
+        rlt = rlt.set_index(cols[0])
+        rlt = rlt[cols[2:]]
+        return rlt.resample(str(time_bin)+'S').apply('mean')
          
     def schd_ue_cnt(self, time_bin=1):
         '''画图描述指定粒度下的调度UE次数

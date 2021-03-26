@@ -24,7 +24,7 @@ class NrLog(object):
 
            Args:
                directory: Log所在目录
-               time_interval: 时间范围[start, end],格式为yyyymmddhhmmss
+               time_interval: 时间范围[start, end],格式为yyyy/mm/dd/ hh:mm:ss
         '''
         if time_interval:
             assert(len(time_interval)==2)
@@ -55,7 +55,7 @@ class NrLog(object):
                     time = pd.to_datetime(nextname.rsplit('.')[0].rsplit('_')[-1])
                     if time < self._time_interval[0]:
                         continue
-            thread = threading.Thread(target=ei2csv, args = (self._directory + '\\' + name))
+            thread = threading.Thread(target=ei2csv, args = (self._directory + '\\' + name,))
             thread.start()
 
         for filetype in const.NR_FILE_TYPES:
@@ -481,10 +481,11 @@ class NrFile(object):
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :
-    svlog = NrLog(r"D:\sv\20210324")
-    #svlog = NrLog(r"D:\sv\20210324", time_interval=['20210323221630', '20210323221636'])
+    #svlog = NrLog(r"D:\sv\20210322")
+    svlog = NrLog(r"D:\sv\20210324", time_interval=['2021/03/23/ 22:16:30', '2021/03/23/ 22:16:36'])
     #svlog = NrLog(r"D:\sv")
     #cell = svlog.get_cell(1)
-    #ue3 = svlog.get_ue(3)
-    #dl = ue3.dl
+    #ue = svlog.get_ue(4)
+    #dl = ue.dl
+    #dl.amc()
     ##dl.schdfail_reasons()

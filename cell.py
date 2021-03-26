@@ -77,7 +77,7 @@ class Cell(object):
         else:
             return '非法uegid值，此ue不存在'
 
-    def show_ue_livetime(self):
+    def show_ue_livetime(self, time_bin=1):
         cols = ['LocalTime', 'UEGID']
 
         logs = []
@@ -91,17 +91,14 @@ class Cell(object):
 
         rlt = pd.DataFrame()
         for log in logs:
-            for data in self.dl.log.gen_of_cols(cols):
-                data = data.drop_duplicates().pivot(cols[0], cols[1], cols[1])
-                rlt = rlt.combine_first(data)
-                
-        for idx, col in enumerate(rlt.columns):
-            rlt[col] = idx + 1
-            
-        rlt.columns.name = 'UEGID'
-        rlt.index.name = 'Time'
-        fig, ax = plt.subplots(1, 1)
-        rlt.plot(ax=ax, kind='line', title='Ue_Alive_time')
+            for data in self.dl.log.gen_of_cols(cols,format_time=True):
+                data = data[data[cols[1]] <= 1600].drop_duplicates()
+                rlt = pd.concat([rlt, data])
+        
+        rlt = rlt.set_index(cols[0])
+        rlt = rlt.resample(str(time_bin)+'S').apply('count')
+        rlt.plot()
+        return rlt
 
     def describle(self):
         '''小区整体信息描述'''
