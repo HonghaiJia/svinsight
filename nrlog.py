@@ -232,14 +232,15 @@ class NrFile(object):
         self._time_interval = time_interval
 
         cols = ['LocalTime', 'CellId', 'UEGID']
-        data = self.get_data_of_cols(cols)
+        data = self.get_data_of_cols(cols,format_time=True)
         if len(data.index):
             self._lines = len(data.index)
             self._times[0] = data.iat[0, 0]
             self._times[1] = data.iat[-1, 0]
             self._cellids = set.union(self._cellids, set(data[cols[1]]))
             self._uegids = set.union(self._uegids, set(data[cols[2]]))
-            self._cell_and_ue_ids = pd.concat([data[cols].drop_duplicates(), self._cell_and_ue_ids]).drop_duplicates()
+            data = data.set_index(cols[0])
+            self._cell_and_ue_ids = pd.concat([data[cols[1:]].drop_duplicates(), self._cell_and_ue_ids]).drop_duplicates()
 
     @property
     def cellids(self):
@@ -359,13 +360,12 @@ class NrFile(object):
         thread_data = {}
         def __readcsv(threadid, filename, na_values,usecols):
             tdata = pd.read_csv(filename, na_values=na_values, usecols=usecols)
-            data = thread_data[threadid]
             if format_time:     
                 datestr = name.rsplit('.')[0].rsplit('_')[-1]
-                self._format_time(data, datestr)
+                self._format_time(tdata, datestr)
 
             if 'LocalTime' in cols and self._time_interval is not None:
-                data = data[(self._time_interval[0] <= data['LocalTime']) & (data['LocalTime'] <= self._time_interval[1])]
+                tdata = tdata[(self._time_interval[0] <= data['LocalTime']) & (data['LocalTime'] <= self._time_interval[1])]
 
             thread_data.update({threadid: tdata})
         
@@ -379,8 +379,8 @@ class NrFile(object):
         rlt = pd.DataFrame()
         for threadid, name in enumerate(np.sort(self._files)):
             threads[threadid].join()
-            print('processed %d of total %d files' %(threadid + 1, len(self._files)))
-            
+            #print('Load %d of total %d files' %(threadid + 1, len(self._files)))
+            data = thread_data[threadid]
             if not filters:
                 rlt = pd.concat([rlt, data])
                 continue
@@ -401,14 +401,11 @@ class NrFile(object):
                 time_bin：时间粒度（s)
                 filters：滤波条件，字典格式{‘列名0’：值， ‘列名1’：值...}
         '''
-        
-        rlt = pd.DataFrame()
+
         time_col = 'LocalTime'
         if time_col not in cols:
             cols.append(time_col) 
-        for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            rlt = pd.concat([rlt, data])
-
+        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
         rlt = rlt[cols].set_index(data[time_col]).drop(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('mean')  
         return rlt
@@ -424,10 +421,7 @@ class NrFile(object):
         time_col = 'LocalTime'
         if time_col not in cols:
             cols.append(time_col) 
-        rlt = pd.DataFrame()
-        for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            rlt = pd.concat([rlt, data])
-
+        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
         rlt = rlt[cols].set_index(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('sum') 
         return rlt
@@ -444,9 +438,7 @@ class NrFile(object):
         time_col = 'LocalTime'
         if time_col not in cols:
             cols.append(time_col) 
-        rlt = pd.DataFrame()
-        for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            rlt = pd.concat([rlt, data])
+        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
         rlt = rlt[cols].set_index(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('min') 
         return rlt
@@ -463,9 +455,7 @@ class NrFile(object):
         time_col = 'LocalTime'
         if time_col not in cols:
             cols.append(time_col) 
-        rlt = pd.DataFrame()
-        for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            rlt = pd.concat([rlt, data])
+        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
         rlt = rlt[cols].set_index(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('max') 
         return rlt
@@ -480,9 +470,7 @@ class NrFile(object):
         time_col = 'LocalTime'
         if time_col not in cols:
             cols.append(time_col) 
-        rlt = pd.DataFrame()
-        for data in self.gen_of_cols(cols, val_filter=filters, format_time=True):
-            rlt = pd.concat([rlt, data])
+        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
         rlt = rlt[cols].set_index(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('count') 
         return rlt
@@ -498,10 +486,7 @@ class NrFile(object):
         col_name = col[0]
         if time_col not in col:
             col.append(time_col) 
-        rlt = pd.DataFrame()
-        for data in self.gen_of_cols(col, val_filter=filters, format_time=True):
-            rlt = pd.concat([rlt, data])
-
+        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
         rlt = rlt.set_index(time_col)
         rlt = rlt[col_name]
         rlt = rlt.resample(str(time_bin)+'S').apply(lambda x: x.value_counts()).unstack()
@@ -516,9 +501,7 @@ class NrFile(object):
             normed: 是否计算比例, False
             filters：滤波条件，字典格式{‘列名0’：值， ‘列名1’：值...}
         '''
-        rlt = pd.DataFrame()
-        for data in self.gen_of_cols(col, val_filter=filters, format_time=False):
-            rlt = pd.concat([rlt, data])
+        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :

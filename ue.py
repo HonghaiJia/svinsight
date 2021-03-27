@@ -46,12 +46,12 @@ class Ue(object):
         rlt = pd.DataFrame()
         cols = ['LocalTime', 'CellId']
         for log in logs:
-            for data in self.dl.log.gen_of_cols(cols):
-                group_data = data[cols[1]].groupby(data[cols[0]]).apply(lambda x: x.value_counts())
-                if 0 == group_data.size:
-                    continue
-                group_data = group_data.unstack(level=1, fill_value=0)
-                rlt = rlt.add(group_data, fill_value=0)
+            data = self.dl.log.get_data_of_cols(cols)
+            group_data = data[cols[1]].groupby(data[cols[0]]).apply(lambda x: x.value_counts())
+            if 0 == group_data.size:
+                continue
+            group_data = group_data.unstack(level=1, fill_value=0)
+            rlt = rlt.add(group_data, fill_value=0)
         
         rlt[rlt==0]=None
         rlt.columns.name = 'CellId'

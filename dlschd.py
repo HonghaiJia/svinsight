@@ -35,17 +35,11 @@ class DlSchd():
                 bler， DataFrame格式，列为传输方案，行为时间
         '''
         
-        ack_cols = ['LocalTime', 'ACK.u8AckInfo', 'ACK.u32DemTime']
-        rlt = pd.DataFrame()
-        for data in self._log.gen_of_cols(ack_cols, format_time=True):
-            data = data.dropna(how='any')
-            if 0 == data.size:
-                continue
-            rlt = pd.concat([rlt, data])
-
-        rlt = rlt.set_index(ack_cols[0]).astype(int)
-        rlt = rlt[rlt[ack_cols[2]]%256 == slot] if slot < 20 else rlt
-        rlt = rlt[ack_cols[1]]
+        cols = ['LocalTime', 'ACK.u8AckInfo', 'ACK.u32DemTime']
+        rlt = self._log.get_data_of_cols(cols, format_time=True).dropna(how='any')
+        rlt = rlt.set_index(cols[0]).astype(int)
+        rlt = rlt[rlt[cols[2]]%256 == slot] if slot < 20 else rlt
+        rlt = rlt[cols[1]]
         rlt.name = 'bler_of_slot'
 
         def bler(data):
@@ -65,13 +59,7 @@ class DlSchd():
         '''
 
         cols = ['LocalTime','SCHD.u8Layers']
-        rlt = pd.DataFrame()
-        for data in self._log.gen_of_cols(cols, format_time=True):
-            data = data.dropna(how='any')
-            if 0 == data.size:
-                continue
-            rlt = pd.concat([rlt, data])
-
+        rlt = self._log.get_data_of_cols(cols, format_time=True).dropna(how='any')
         rlt = rlt.set_index(cols[0]).astype(int)
         rlt = rlt[cols[1]]
         rlt = rlt.resample(str(time_bin)+'S').apply(lambda x: x.value_counts()).unstack()
@@ -90,13 +78,8 @@ class DlSchd():
                 趋势图：x轴为时间粒度，y轴为各传输方案比例
         '''
         cols = ['LocalTime','CSI.u8RptRI', 'CSI.u8RptWideCqi']
-        rlt = pd.DataFrame()
         val_filter = {cols[1]: [ri]}
-        for data in self._log.gen_of_cols(cols, format_time=True, val_filter=val_filter):
-            if 0 == data.size:
-                continue
-            rlt = pd.concat([rlt, data])
-
+        rlt = self._log.get_data_of_cols(cols, val_filter=val_filter, format_time=True).dropna(how='any')
         rlt = rlt.set_index(cols[0])
         rlt = rlt[cols[1:]]
         return rlt.resample(str(time_bin)+'S').apply('count')
@@ -111,13 +94,8 @@ class DlSchd():
                 趋势图：x轴为时间粒度，y轴为各传输方案比例
         '''
         cols = ['LocalTime', 'SCHD.u8Layers', 'AMC.s16InnerSinr', 'AMC.s16DeltaSinr', 'AMC.u8SchdMcs']
-        rlt = pd.DataFrame()
         val_filter = {cols[1]: [layer]}
-        for data in self._log.gen_of_cols(cols, format_time=True, val_filter=val_filter):
-            if 0 == data.size:
-                continue
-            rlt = pd.concat([rlt, data])
-
+        rlt = self._log.get_data_of_cols(cols, val_filter=val_filter, format_time=True).dropna(how='any')
         rlt = rlt.set_index(cols[0])
         rlt = rlt[cols[2:]]
         return rlt.resample(str(time_bin)+'S').apply('mean')
@@ -248,10 +226,11 @@ class DlSchdUe(DlSchd):
     def is_bsr_enough(self):
         '''判断UE的bsr是否充足,schdbsr <= rlcbsr'''
         cols = ['LCH_SCHD.u32RlcRptBsr', 'LCH_SCHD.u32SchdBsr']
-        for data in self._log.gen_of_cols(cols):
-            if data(data[cols[1]] < data[cols[2]]).any():
-                return False
-        return True
+        data = self._log.get_data_of_cols(cols)
+        if data(data[cols[1]] < data[cols[2]]).any():
+            return False
+        else:
+            return True
 
     def get_idx_of_lastschd(self, curtime):
         '''距离当前时间往前的最近一次调度索引'''
@@ -259,14 +238,10 @@ class DlSchdUe(DlSchd):
 
     def pucch_sinr_blow(self, fmt, thresh=-5, time_bin=1):
         cols = ['LocalTime', 'PUCCH_PC.format', 'PUCCH_PC.rptSinr']
-
-        rlt = pd.DataFrame()
-        for data in self._log.gen_of_cols(cols, format_time=True):
-            data = data[(data[cols[1]]==fmt) & (data[cols[2]] <= thresh)]
-            rlt = pd.concat([rlt, data])
-
-        rlt = rlt.set_index(cols[0])
-        return rlt[cols[2]].resample(str(time_bin)+'S').apply('count') 
+        data = self._log.get_data_of_cols(cols, format_time=True)
+        data = data[(data[cols[1]]==fmt) & (data[cols[2]] <= thresh)]
+        data = data.set_index(cols[0])
+        return data[cols[2]].resample(str(time_bin)+'S').apply('count') 
     
     def pucch_pc(self, fmt):
         cols = [
@@ -283,10 +258,9 @@ class DlSchdUe(DlSchd):
         tpc_table = [-1, 0, 1, 3]
         
         rlt = pd.DataFrame()
-        for data in self._log.gen_of_cols(cols):
-            data = data[data[cols[0]]==fmt]
-            data[cols[1]] = data[cols[1]].apply(lambda x: tpc_table[int(x)] if x <=3 else 0)
-            rlt = pd.concat([rlt, data[cols[1:]]])
+        data = self._log.get_data_of_cols(cols)
+        data = data[data[cols[0]]==fmt]
+        data[cols[1]] = data[cols[1]].apply(lambda x: tpc_table[int(x)] if x <=3 else 0)
         #rlt.plot(subplots=True)
-        return rlt
+        return data[cols[1:]]
 

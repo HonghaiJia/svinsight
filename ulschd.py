@@ -146,9 +146,9 @@ class UlSchd():
         '''
         col = ['SCHD_FAIL_RSN.u32UeSchdFailRsn']
         rlt = pd.Series(name='SchdFail_Cnt')
-        for data in self._log.gen_of_cols(col):
-            data = data[col[0]].dropna().astype(np.int32).value_counts()
-            rlt = rlt.add(data, fill_value=0) if rlt is not None else data
+        data = self._log.get_data_of_cols(col)
+        data = data[col[0]].dropna().astype(np.int32).value_counts()
+        rlt = rlt.add(data, fill_value=0) if rlt is not None else data
         rlt.index = [const.NR_SCHD_FAIL_RSNS[int(idx)] for idx in rlt.index]
         rlt.index.name = 'Fail_Rsn'
         return rlt
@@ -177,11 +177,9 @@ class UlSchd():
         
         ack_cols = ['LocalTime', 'CRCI.u8AckInfo', 'CRCI.u32DemTime']
         rlt = pd.DataFrame()
-        for data in self._log.gen_of_cols(ack_cols, format_time=True):
-            data = data.dropna(how='any')
-            if 0 == data.size:
-                continue
-            rlt = pd.concat([rlt, data])
+        data = self._log.get_data_of_cols(ack_cols, format_time=True)
+        data = data.dropna(how='any')
+        rlt = pd.concat([rlt, data])
 
         rlt = rlt.set_index(ack_cols[0]).astype(int)
         rlt = rlt[rlt[ack_cols[2]]%256 == slot] if slot < 20 else rlt
@@ -199,19 +197,16 @@ class UlSchd():
         '''查找是否存在自维护, 并输出相关信息'''
 
         cols = ['UEGID', 'CRCI.u32DemTime', 'CRCI.u8HarqId', 'CRCI.u8IsSelfMainTain']
-        rlt = pd.DataFrame(columns=cols)
-        for data in self._log.gen_of_cols(cols):
-            rlt = rlt.append(data[data[cols[3]] == 1])
-        return rlt
+        data = self._log.get_data_of_cols(cols)
+        return data[data[cols[3]] == 1]
 
     def find_harqfail(self):
         '''查找是否存harqfail, 并输出相关信息'''
 
         cols = ['UEGID', 'CRCI.u32DemTime', 'CRCI.u8HarqId', 'CRCI.u8IsHarqFail']
         rlt = pd.DataFrame(columns=cols)
-        for data in self._log.gen_of_cols(cols):
-            rlt = rlt.append(data[data[cols[3]] == 1])
-        return rlt
+        data = self._log.get_data_of_cols(cols)
+        return data[data[cols[3]] == 1]
 
 class UlSchdCell(UlSchd):
     '''上行调度Log分析类'''

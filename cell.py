@@ -91,9 +91,9 @@ class Cell(object):
 
         rlt = pd.DataFrame()
         for log in logs:
-            for data in self.dl.log.gen_of_cols(cols,format_time=True):
-                data = data[data[cols[1]] <= 1600].drop_duplicates()
-                rlt = pd.concat([rlt, data])
+            data = self.dl.log.get_data_of_cols(cols,format_time=True)
+            data = data[data[cols[1]] <= 1600].drop_duplicates()
+            rlt = pd.concat([rlt, data])
         
         rlt = rlt.set_index(cols[0])
         rlt = rlt.resample(str(time_bin)+'S').apply('count')
