@@ -342,7 +342,7 @@ class NrFile(object):
             Returns:
                 数据，DataFrame格式
         '''
-        if format_time or self._time_interval is not None:
+        if format_time:
             assert('LocalTime' in cols)
 
         if self._time_interval is not None:
@@ -365,7 +365,7 @@ class NrFile(object):
                 self._format_time(tdata, datestr)
 
             if 'LocalTime' in cols and self._time_interval is not None:
-                tdata = tdata[(self._time_interval[0] <= data['LocalTime']) & (data['LocalTime'] <= self._time_interval[1])]
+                tdata = tdata[(self._time_interval[0] <= tdata['LocalTime']) & (tdata['LocalTime'] <= self._time_interval[1])]
 
             thread_data.update({threadid: tdata})
         
@@ -379,7 +379,7 @@ class NrFile(object):
         rlt = pd.DataFrame()
         for threadid, name in enumerate(np.sort(self._files)):
             threads[threadid].join()
-            #print('Load %d of total %d files' %(threadid + 1, len(self._files)))
+            print('Load %d of total %d files' %(threadid + 1, len(self._files)))
             data = thread_data[threadid]
             if not filters:
                 rlt = pd.concat([rlt, data])
@@ -505,8 +505,8 @@ class NrFile(object):
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :
-    #svlog = NrLog(r"D:\sv\20210325214850_K30", time_interval=['2021/03/25/ 21:50:00', '2021/03/26/ 2:20:00'])
-    svlog = NrLog(r"D:\sv\test")
+    svlog = NrLog(r"D:\sv\20210325214850_K30", time_interval=['2021/03/25/ 21:50:00', '2021/03/25/ 21:55:00'])
+    #svlog = NrLog(r"D:\sv\20210325214850_K30")
     #cell = svlog.get_cell(1)
     #ue = svlog.get_ue(4)
     #dl = ue.dl
