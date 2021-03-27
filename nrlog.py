@@ -38,14 +38,12 @@ class NrLog(object):
         self._ues = {}
         self._cell_and_ue_ids = pd.DataFrame()
 
-        eifiles = pd.Series(np.sort(os.listdir(self._directory)))
-        eifiles = list(eifiles[eifiles.apply(lambda x: x.endswith(r'.ei'))])
-
-        for i, name in enumerate(eifiles):   
-            csvname = name.rsplit('.')[0] + r'.csv'
-            if csvname in os.listdir(self._directory):
-                continue
-
+        files = pd.Series(np.sort(os.listdir(self._directory)))
+        eifiles = files[files.apply(lambda x: x.endswith(r'.ei') and x.rsplit('.')[0]+r'.csv' not in os.listdir(self._directory))]        
+        
+        max_thread = 4
+        for i in np.arange(0, len(eifiles), max_thread):
+            threadlist = []
             if self._time_interval is not None:
                 time = pd.to_datetime(name.rsplit('.')[0].rsplit('_')[-1])
                 if time > self._time_interval[1]:
@@ -55,8 +53,12 @@ class NrLog(object):
                     time = pd.to_datetime(nextname.rsplit('.')[0].rsplit('_')[-1])
                     if time < self._time_interval[0]:
                         continue
-            thread = threading.Thread(target=ei2csv, args = (self._directory + '\\' + name,))
+            thread = threading.Thread(target=ei2csv, args = (self._directory + '\\' + eifile, ))
+            threadlist.append(thread)
             thread.start()
+
+            for thread in threadlist:
+                thread.join()     
 
         for filetype in const.NR_FILE_TYPES:
             filenames = self._filenames_of_type(filetype)
@@ -229,22 +231,14 @@ class NrFile(object):
         self._cell_and_ue_ids = pd.DataFrame()
         self._time_interval = time_interval
 
-        cols = ['LocalTime']
-        for data in self.gen_of_cols(cols, format_time=True):
-            if len(data.index) == 0:
-                self._lines += 0
-                continue
-            self._lines = self._lines + len(data.index)
-            if self._times[0] == -1:
-                self._times[0] = data.iat[0, 0]
+        cols = ['LocalTime', 'CellId', 'UEGID']
+        data = self.get_data_of_cols(cols)
+        if len(data.index):
+            self._lines = len(data.index)
+            self._times[0] = data.iat[0, 0]
             self._times[1] = data.iat[-1, 0]
-
-        cols = ['CellId', 'UEGID']
-        for data in self.gen_of_cols(cols):
-            if len(data.index) == 0:
-                continue
-            self._cellids = set.union(self._cellids, set(data[cols[0]]))
-            self._uegids = set.union(self._uegids, set(data[cols[1]]))
+            self._cellids = set.union(self._cellids, set(data[cols[1]]))
+            self._uegids = set.union(self._uegids, set(data[cols[2]]))
             self._cell_and_ue_ids = pd.concat([data[cols].drop_duplicates(), self._cell_and_ue_ids]).drop_duplicates()
 
     @property
@@ -339,7 +333,7 @@ class NrFile(object):
             else:
                 yield data[mask]
             
-    def get_data_of_cols(self, cols, val_filter=None):
+    def get_data_of_cols(self, cols, val_filter=None, format_time=False):
         '''获取指定cols的数据
             Args：
                 cols: 列名列表
@@ -347,9 +341,56 @@ class NrFile(object):
             Returns:
                 数据，DataFrame格式
         '''
+        if format_time or self._time_interval is not None:
+            assert('LocalTime' in cols)
+
+        if self._time_interval is not None:
+            format_time = True
+
+        filters = {}
+        if val_filter:
+            filters.update(val_filter)
+        if self._id_filter:
+            filters.update(self._id_filter)
+
+        if cols is not None:
+            cols = list(set.union(set(filters), set(cols)))
+           
+        thread_data = {}
+        def __readcsv(threadid, filename, na_values,usecols):
+            tdata = pd.read_csv(filename, na_values=na_values, usecols=usecols)
+            data = thread_data[threadid]
+            if format_time:     
+                datestr = name.rsplit('.')[0].rsplit('_')[-1]
+                self._format_time(data, datestr)
+
+            if 'LocalTime' in cols and self._time_interval is not None:
+                data = data[(self._time_interval[0] <= data['LocalTime']) & (data['LocalTime'] <= self._time_interval[1])]
+
+            thread_data.update({threadid: tdata})
+        
+        threads = {}
+        for threadid, name in enumerate(np.sort(self._files)):
+            filename = os.path.join(self._directory, name)
+            thread = threading.Thread(target=__readcsv, args=(threadid, filename), kwargs={'na_values':'-', 'usecols' : cols})
+            threads.update({threadid: thread})
+            thread.start()
+        
         rlt = pd.DataFrame()
-        for data in self.gen_of_cols(cols=cols, val_filter=val_filter):
-            rlt = pd.concat([rlt, data])
+        for threadid, name in enumerate(np.sort(self._files)):
+            threads[threadid].join()
+            print('processed %d of total %d files' %(threadid + 1, len(self._files)))
+            
+            if not filters:
+                rlt = pd.concat([rlt, data])
+                continue
+
+            mask = data[list(filters.keys())].isin(filters).all(1)
+            if cols is not None:
+                rlt = pd.concat([rlt, data[mask][cols]])
+            else:
+                rlt = pd.concat([rlt, data[mask]])
+
         return rlt
 
     def mean_of_cols(self, cols, time_bin=1, filters=None):
@@ -481,9 +522,8 @@ class NrFile(object):
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :
-    #svlog = NrLog(r"D:\sv\20210322")
-    svlog = NrLog(r"D:\sv\20210324", time_interval=['2021/03/23/ 22:16:30', '2021/03/23/ 22:16:36'])
-    #svlog = NrLog(r"D:\sv")
+    #svlog = NrLog(r"D:\sv\20210325214850_K30", time_interval=['2021/03/25/ 21:50:00', '2021/03/26/ 2:20:00'])
+    svlog = NrLog(r"D:\sv\test")
     #cell = svlog.get_cell(1)
     #ue = svlog.get_ue(4)
     #dl = ue.dl
