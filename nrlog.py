@@ -38,27 +38,13 @@ class NrLog(object):
         self._ues = {}
         self._cell_and_ue_ids = pd.DataFrame()
 
-        files = pd.Series(np.sort(os.listdir(self._directory)))
-        eifiles = files[files.apply(lambda x: x.endswith(r'.ei') and x.rsplit('.')[0]+r'.csv' not in os.listdir(self._directory))]        
-        
-        max_thread = 4
-        for i in np.arange(0, len(eifiles), max_thread):
-            threadlist = []
-            if self._time_interval is not None:
-                time = pd.to_datetime(name.rsplit('.')[0].rsplit('_')[-1])
-                if time > self._time_interval[1]:
-                    continue
-                if time < self._time_interval[0] and i+1 < len(eifiles):
-                    nextname = eifiles[i+1]
-                    time = pd.to_datetime(nextname.rsplit('.')[0].rsplit('_')[-1])
-                    if time < self._time_interval[0]:
-                        continue
-            thread = threading.Thread(target=ei2csv, args = (self._directory + '\\' + eifile, ))
-            threadlist.append(thread)
-            thread.start()
-
-            for thread in threadlist:
-                thread.join()     
+        files = pd.Series(os.listdir(self._directory))
+        eifiles = files[files.apply(lambda x: x.endswith(r'.ei') and x.rsplit('.')[0]+r'.csv' not in os.listdir(self._directory))]   
+        start = eifiles.apply(lambda x: pd.to_datetime(x.rsplit('.')[0].rsplit('_')[-1]))
+        start = start.sort_values().reset_index(drop=True)
+        end = pd.concat([start[1:],start[-1:]]).reset_index(drop=True)
+        eifiles = eifiles[(start <= self._time_interval[1]) & (end >= self._time_interval[0])]
+        ei2csv(directory,list(eifiles)) 
 
         for filetype in const.NR_FILE_TYPES:
             filenames = self._filenames_of_type(filetype)
@@ -73,6 +59,17 @@ class NrLog(object):
     @property
     def directory(self):
         return self._directory
+
+    def __get_eifiles_of_time_interval(self, eifiles):
+        start = eifiles.apply(lambda x: pd.to_datetime(x.rsplit('.')[0].rsplit('_')[-1]))
+        end = start[1:]
+        end.append(start[-1]) 
+        
+        for i, eifile in enumerate(eifiles):
+            if not (start > endtime or end < starttime):
+                eifiles.remove(eifile)
+        return eifiles
+
 
     def _filenames_of_type(self, filetype):
         '''获取指定文件类型的所有文件名
@@ -505,8 +502,8 @@ class NrFile(object):
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :
-    svlog = NrLog(r"D:\sv\20210325214850_K30", time_interval=['2021/03/25/ 21:50:00', '2021/03/25/ 21:55:00'])
-    #svlog = NrLog(r"D:\sv\20210325214850_K30")
+    svlog = NrLog(r"D:\sv\20210324", time_interval=['2021/03/23/ 21:37:00', '2021/03/23/ 21:38:00'])
+    #svlog = NrLog(r"D:\svlog\20210401-rlc max")
     #cell = svlog.get_cell(1)
     #ue = svlog.get_ue(4)
     #dl = ue.dl

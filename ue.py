@@ -57,6 +57,6 @@ class Ue(object):
         rlt.columns.name = 'CellId'
         rlt.index.name = 'Time'
         fig, ax = plt.subplots(1, 1)
-        rlt.plot(ax=ax, kind='line', title='Ue_Alive_time')
+        rlt.plot(ax=ax, kind='line', title='Ue_Alive_time',figsize=(10,5))
         
         return

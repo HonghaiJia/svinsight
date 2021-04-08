@@ -8,22 +8,17 @@ import threading
 
 dll = CDLL(r'D:\svinsight\util\EI_FileProc.dll')
 
-def ei2csv(filename):
+def __ei2csv(filename):
     dll.ConvertFile(create_string_buffer(
         bytes(filename, encoding='utf8')), dll.InitEnbMonitorThreadHandle())
 
-
-if __name__ == '__main__':
-    directory = r"D:\sv\20210325214850_K30"
-    files = pd.Series(os.listdir(directory))
-    eifiles = list(files[files.apply(lambda x: x.endswith(r'.ei') and x.rsplit('.')[0]+r'.csv' not in files)])    
-
+def ei2csv(directory, eifiles):
     max_thread = 8
     complete = 0
     for i in np.arange(0, len(eifiles), max_thread):
         threadlist = []
         for eifile in eifiles[i:i+max_thread]:
-            thread = threading.Thread(target=ei2csv, args=(directory + '\\' + eifile, ))
+            thread = threading.Thread(target=__ei2csv, args=(directory + '\\' + eifile, ))
             threadlist.append(thread)
             thread.start()
                 
@@ -33,6 +28,14 @@ if __name__ == '__main__':
             print('processed %d of total %d files' %(complete, len(eifiles)))
 
     print("!!Done!!")
+
+
+if __name__ == '__main__':
+    directory = r"D:\sv\K30\2021-4-1\20210401212449-K30"
+    files = pd.Series(os.listdir(directory))
+    eifiles = list(files[files.apply(lambda x: x.endswith(r'.ei') and x.rsplit('.')[0]+r'.csv' not in files)])  
+    ei2csv(directory, eifiles)  
+
 
 
 # #!/usr/bin/env python3
