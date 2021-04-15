@@ -40,11 +40,12 @@ class NrLog(object):
 
         files = pd.Series(os.listdir(self._directory))
         eifiles = files[files.apply(lambda x: x.endswith(r'.ei') and x.rsplit('.')[0]+r'.csv' not in os.listdir(self._directory))]   
-        start = eifiles.apply(lambda x: pd.to_datetime(x.rsplit('.')[0].rsplit('_')[-1]))
-        start = start.sort_values().reset_index(drop=True)
-        end = pd.concat([start[1:],start[-1:]]).reset_index(drop=True)
-        eifiles = eifiles[(start <= self._time_interval[1]) & (end >= self._time_interval[0])]
-        ei2csv(directory,list(eifiles)) 
+        if eifiles.size:
+            start = eifiles.apply(lambda x: pd.to_datetime(x.rsplit('.')[0].rsplit('_')[-1]))
+            start = start.sort_values().reset_index(drop=True)
+            end = pd.concat([start[1:],start[-1:]]).reset_index(drop=True)
+            eifiles = eifiles[(start <= self._time_interval[1]) & (end >= self._time_interval[0])]
+            ei2csv(directory,list(eifiles)) 
 
         for filetype in const.NR_FILE_TYPES:
             filenames = self._filenames_of_type(filetype)
@@ -502,10 +503,10 @@ class NrFile(object):
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :
-    svlog = NrLog(r"D:\sv\20210324", time_interval=['2021/03/23/ 21:37:00', '2021/03/23/ 21:38:00'])
-    #svlog = NrLog(r"D:\svlog\20210401-rlc max")
+    #svlog = NrLog(r"D:\sv\20210324", time_interval=['2021/03/23/ 21:37:00', '2021/03/23/ 21:38:00'])
+    svlog = NrLog(r"D:\问题分析\Mate30-2UEbler高EI")
     #cell = svlog.get_cell(1)
-    #ue = svlog.get_ue(4)
+    ue = svlog.get_ue(1)
     #dl = ue.dl
     #dl.amc()
     ##dl.schdfail_reasons()

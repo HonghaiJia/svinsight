@@ -245,22 +245,24 @@ class DlSchdUe(DlSchd):
     
     def pucch_pc(self, fmt):
         cols = [
+        'AirTime',
         'PUCCH_PC.format', 
         'SCHD.u8Tpc',
         'PUCCH_PC.rptSinr', 
         #'PUCCH_PC.rptSinrAdj', 
         'PUCCH_PC.FilterSinr', 
-        #'PUCCH_PC.rptNi', 
-        #'PUCCH_PC.rptAnt0Pwr', 
-        #'PUCCH_PC.rptAnt1Pwr'
+        'PUCCH_PC.rptNi', 
+        'PUCCH_PC.rptAnt0Pwr', 
+        'PUCCH_PC.rptAnt1Pwr'
         ]
 
         tpc_table = [-1, 0, 1, 3]
-        
-        rlt = pd.DataFrame()
         data = self._log.get_data_of_cols(cols)
-        data = data[data[cols[0]]==fmt]
-        data[cols[1]] = data[cols[1]].apply(lambda x: tpc_table[int(x)] if x <=3 else 0)
-        #rlt.plot(subplots=True)
-        return data[cols[1:]]
+        data = data[data[cols[1]]==fmt]
+        data = data[data[cols[3]]>-30]
+        data[cols[2]] = data[cols[2]].apply(lambda x: tpc_table[int(x)] if x <=3 else 0)
+        data.reset_index(inplace=True)
+        for col in cols[2:]:
+            data.plot.scatter(x=cols[0], y=col,figsize=(15,5))
+        return data[cols[2:]]
 
