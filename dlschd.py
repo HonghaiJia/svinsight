@@ -159,7 +159,8 @@ class DlSchd():
                 趋势图：x轴为时间粒度，y轴为调度UE次数
         '''
         col_name = ['ACK.u8AckInfo']
-        return self._log.sum_of_cols(col_name, time_bin=time_bin)
+        filters = {col_name[0]: [2]}
+        return self._log.cnt_of_cols(col_name, time_bin=time_bin, filters=filters)
         
     def harqfail_cnt(self, time_bin=1):
         '''画图描述指定粒度下的harqfail次数
@@ -171,7 +172,8 @@ class DlSchd():
                 趋势图：x轴为时间粒度，y轴为调度UE次数
         '''
         col_name = ['ACK.u8IsHarqFail']
-        return self._log.sum_of_cols(col_name, time_bin=time_bin)
+        filters = {col_name[0]: [1]}
+        return self._log.cnt_of_cols(col_name, time_bin=time_bin, filters=filters)
 
     def selfmaintain_cnt(self, time_bin=1):
         '''画图描述指定粒度下的自维护次数
@@ -183,7 +185,8 @@ class DlSchd():
         '''
 
         col_name = ['ACK.u8IsSelfMainTain']
-        return self._log.sum_of_cols(col_name, time_bin=time_bin)
+        filters = {col_name[0]: [1]}
+        return self._log.cnt_of_cols(col_name, time_bin=time_bin, filters=filters)
 
         
     
@@ -192,6 +195,19 @@ class DlSchdCell(DlSchd):
 
     def __init__(self, log, cell):
         super(DlSchdCell, self).__init__(log, cell)
+
+    def describle_dtx(self):
+        '''DTX时隙的UE调度组合
+        '''
+        
+        cols = ['UEGID', 'ACK.u8AckInfo', 'ACK.u32DemTime']
+        rlt = self._log.get_data_of_cols(cols).dropna(how='any')
+        rlt = rlt[rlt[cols[1]] == 2].astype('uint')
+        rlt = rlt.groupby(cols[2])[cols[0]].apply(lambda x: x.value_counts()).unstack().fillna(-1)
+        rlt.reset_index(inplace=True)
+        for col in rlt.columns[1:]:
+            rlt.plot.scatter(x=cols[2], y=col,figsize=(15,5))
+        return rlt
 
 class DlSchdUe(DlSchd):
     '''下行调度UE分析类'''
@@ -223,14 +239,13 @@ class DlSchdUe(DlSchd):
                 
         return
 
-    def is_bsr_enough(self):
+    def bsr(self):
         '''判断UE的bsr是否充足,schdbsr <= rlcbsr'''
-        cols = ['LCH_SCHD.u32RlcRptBsr', 'LCH_SCHD.u32SchdBsr']
-        data = self._log.get_data_of_cols(cols)
-        if data(data[cols[1]] < data[cols[2]]).any():
-            return False
-        else:
-            return True
+        cols = ['LocalTime','LCH_SCHD.u32RlcRptBsr', 'LCH_SCHD.u32SchdBsr']
+        data = self._log.get_data_of_cols(cols,format_time=True)
+        data = data.set_index(cols[0])
+        data.plot()
+        return data
 
     def get_idx_of_lastschd(self, curtime):
         '''距离当前时间往前的最近一次调度索引'''
@@ -246,20 +261,19 @@ class DlSchdUe(DlSchd):
     def pucch_pc(self, fmt):
         cols = [
         'AirTime',
-        'PUCCH_PC.format', 
+        'PUCCH_PC.Format', 
         'SCHD.u8Tpc',
-        'PUCCH_PC.rptSinr', 
-        #'PUCCH_PC.rptSinrAdj', 
+        'PUCCH_PC.RptSinr', 
+        'PUCCH_PC.RptAdjSinr', 
         'PUCCH_PC.FilterSinr', 
-        'PUCCH_PC.rptNi', 
-        'PUCCH_PC.rptAnt0Pwr', 
-        'PUCCH_PC.rptAnt1Pwr'
+        'PUCCH_PC.ni', 
+        'PUCCH_PC.ant0Pwr', 
+        'PUCCH_PC.ant1Pwr'
         ]
 
         tpc_table = [-1, 0, 1, 3]
         data = self._log.get_data_of_cols(cols)
         data = data[data[cols[1]]==fmt]
-        data = data[data[cols[3]]>-30]
         data[cols[2]] = data[cols[2]].apply(lambda x: tpc_table[int(x)] if x <=3 else 0)
         data.reset_index(inplace=True)
         for col in cols[2:]:

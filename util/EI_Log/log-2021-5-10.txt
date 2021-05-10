@@ -1,0 +1,6 @@
+chFileName D:\svlog\20210508181215_2UeSrMax\CMAC_dlUeTtiInfo_20210509015310.ei
+chFileName D:\svlog\20210508181215_2UeSrMax\CMAC_dlUeTtiInfo_20210509015615.ei
+chFileName D:\svlog\20210508181215_2UeSrMax\CMAC_dlUeTtiInfo_20210509015911.ei
+chFileName D:\svlog\20210508181215_2UeSrMax\CMAC_dlUeTtiInfo_20210509020159.ei
+convert suc
+chFileName D:\svlog\slice\CMAC_dlUeTtiInfo_20210509015310.ei

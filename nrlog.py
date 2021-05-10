@@ -41,10 +41,11 @@ class NrLog(object):
         files = pd.Series(os.listdir(self._directory))
         eifiles = files[files.apply(lambda x: x.endswith(r'.ei') and x.rsplit('.')[0]+r'.csv' not in os.listdir(self._directory))]   
         if eifiles.size:
-            start = eifiles.apply(lambda x: pd.to_datetime(x.rsplit('.')[0].rsplit('_')[-1]))
-            start = start.sort_values().reset_index(drop=True)
-            end = pd.concat([start[1:],start[-1:]]).reset_index(drop=True)
-            eifiles = eifiles[(start <= self._time_interval[1]) & (end >= self._time_interval[0])]
+            if time_interval:
+                start = eifiles.apply(lambda x: pd.to_datetime(x.rsplit('.')[0].rsplit('_')[-1]))
+                start = start.sort_values().reset_index(drop=True)
+                end = pd.concat([start[1:],start[-1:]]).reset_index(drop=True)
+                eifiles = eifiles[(start <= self._time_interval[1]) & (end >= self._time_interval[0])]
             ei2csv(directory,list(eifiles)) 
 
         for filetype in const.NR_FILE_TYPES:
@@ -60,17 +61,6 @@ class NrLog(object):
     @property
     def directory(self):
         return self._directory
-
-    def __get_eifiles_of_time_interval(self, eifiles):
-        start = eifiles.apply(lambda x: pd.to_datetime(x.rsplit('.')[0].rsplit('_')[-1]))
-        end = start[1:]
-        end.append(start[-1]) 
-        
-        for i, eifile in enumerate(eifiles):
-            if not (start > endtime or end < starttime):
-                eifiles.remove(eifile)
-        return eifiles
-
 
     def _filenames_of_type(self, filetype):
         '''获取指定文件类型的所有文件名
@@ -309,12 +299,13 @@ class NrFile(object):
         if self._id_filter:
             filters.update(self._id_filter)
 
+        filter_cols = None
         if cols is not None:
-            cols = list(set.union(set(filters), set(cols)))
+            filter_cols = list(set.union(set(filters), set(cols)))
 
         for file in self._files:
             filename = os.path.join(self._directory, file)
-            data = pd.read_csv(filename, na_values='-', usecols=cols)
+            data = pd.read_csv(filename, na_values='-', usecols=filter_cols)
             if format_time:
                 datestr = file.rsplit('.')[0].rsplit('_')[-1]
                 self._format_time(data, datestr)
@@ -340,9 +331,10 @@ class NrFile(object):
             Returns:
                 数据，DataFrame格式
         '''
+        
         if format_time:
             assert('LocalTime' in cols)
-
+        
         if self._time_interval is not None:
             format_time = True
 
@@ -351,9 +343,12 @@ class NrFile(object):
             filters.update(val_filter)
         if self._id_filter:
             filters.update(self._id_filter)
-
+        
+        filter_cols = None
         if cols is not None:
-            cols = list(set.union(set(filters), set(cols)))
+            filter_cols = list(set.union(set(filters), set(cols)))
+            if format_time and 'LocalTime' not in cols:
+                filter_cols = filter_cols.append('LocalTime')
            
         thread_data = {}
         def __readcsv(threadid, filename, na_values,usecols):
@@ -370,14 +365,14 @@ class NrFile(object):
         threads = {}
         for threadid, name in enumerate(np.sort(self._files)):
             filename = os.path.join(self._directory, name)
-            thread = threading.Thread(target=__readcsv, args=(threadid, filename), kwargs={'na_values':'-', 'usecols' : cols})
+            thread = threading.Thread(target=__readcsv, args=(threadid, filename), kwargs={'na_values':'-', 'usecols' : filter_cols})
             threads.update({threadid: thread})
             thread.start()
         
         rlt = pd.DataFrame()
         for threadid, name in enumerate(np.sort(self._files)):
             threads[threadid].join()
-            print('Load %d of total %d files' %(threadid + 1, len(self._files)))
+            #print('Load %d of total %d files' %(threadid + 1, len(self._files)))
             data = thread_data[threadid]
             if not filters:
                 rlt = pd.concat([rlt, data])
@@ -404,7 +399,7 @@ class NrFile(object):
         if time_col not in cols:
             cols.append(time_col) 
         rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
-        rlt = rlt[cols].set_index(data[time_col]).drop(time_col)
+        rlt = rlt[cols].set_index(rlt[time_col]).drop(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('mean')  
         return rlt
 
@@ -468,7 +463,7 @@ class NrFile(object):
         time_col = 'LocalTime'
         if time_col not in cols:
             cols.append(time_col) 
-        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
+        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True).fillna(0)
         rlt = rlt[cols].set_index(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('count') 
         return rlt
@@ -484,7 +479,7 @@ class NrFile(object):
         col_name = col[0]
         if time_col not in col:
             col.append(time_col) 
-        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
+        rlt = self.get_data_of_cols(col, val_filter=filters, format_time=True)
         rlt = rlt.set_index(time_col)
         rlt = rlt[col_name]
         rlt = rlt.resample(str(time_bin)+'S').apply(lambda x: x.value_counts()).unstack()
@@ -499,14 +494,17 @@ class NrFile(object):
             normed: 是否计算比例, False
             filters：滤波条件，字典格式{‘列名0’：值， ‘列名1’：值...}
         '''
-        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
+        rlt = self.get_data_of_cols(col, val_filter=filters, format_time=True)
         return rlt.hist(bins=bins, normed=normed)
 
 if __name__ == '__main__' :
     #svlog = NrLog(r"D:\sv\20210324", time_interval=['2021/03/23/ 21:37:00', '2021/03/23/ 21:38:00'])
-    svlog = NrLog(r"D:\问题分析\Mate30-2UEbler高EI")
+    svlog = NrLog(r"D:\svlog\20210508181215_2UeSrMax", time_interval=['2021/05/09/ 1:54:52', '2021/05/09/ 1:54:55'])
+    #svlog = NrLog(r"D:\svlog\slice")
     #cell = svlog.get_cell(1)
-    ue = svlog.get_ue(1)
+    #cell._dl.describle_dtx()
+    #ue7 = svlog.get_ue(7)
+    #ue15 = svlog.get_ue(15)
     #dl = ue.dl
     #dl.amc()
     ##dl.schdfail_reasons()

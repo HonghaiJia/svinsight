@@ -91,12 +91,12 @@ class Cell(object):
 
         rlt = pd.DataFrame()
         for log in logs:
-            data = self.dl.log.get_data_of_cols(cols,format_time=True)
-            data = data[data[cols[1]] <= 1600].drop_duplicates()
+            data = log.get_data_of_cols(cols,format_time=True)
+            data = data[data[cols[1]] <= 1600]
             rlt = pd.concat([rlt, data])
         
         rlt = rlt.set_index(cols[0])
-        rlt = rlt.resample(str(time_bin)+'S').apply('count')
+        rlt = rlt.resample(str(time_bin)+'S').apply(lambda x: x.value_counts()).unstack()
         rlt.plot()
         return rlt
 

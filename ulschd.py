@@ -71,7 +71,7 @@ class UlSchd():
         col_name = ['GRANT.u8HarqId']
         return self._log.cnt_of_cols(col_name, time_bin=time_bin)
 
-    def schd_rbnum(self, airtime_bin_size=1):
+    def schd_rbnum(self, time_bin=1):
         '''画图描述指定粒度下的调度RB数
 
             Args:
@@ -83,7 +83,7 @@ class UlSchd():
         col_name = ['GRANT.u16RbNum']
         return self._log.mean_of_cols(col_name, time_bin=time_bin)
     
-    def schd_mcs(self, airtime_bin_size=1):
+    def schd_mcs(self, time_bin=1):
         '''画图描述指定粒度下的调度mcs
 
             Args:
@@ -204,7 +204,6 @@ class UlSchd():
         '''查找是否存harqfail, 并输出相关信息'''
 
         cols = ['UEGID', 'CRCI.u32DemTime', 'CRCI.u8HarqId', 'CRCI.u8IsHarqFail']
-        rlt = pd.DataFrame(columns=cols)
         data = self._log.get_data_of_cols(cols)
         return data[data[cols[3]] == 1]
 
