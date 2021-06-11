@@ -1,0 +1,11 @@
+chFileName D:\svlog\S20-RLC MAX-EI\CMAC_dlUeTtiInfo_20210513155353.ei
+chFileName D:\svlog\S20-RLC MAX-EI\CMAC_dlUeTtiInfo_20210513155332.ei
+chFileName D:\svlog\S20-RLC MAX-EI\CMAC_dlUeTtiInfo_20210513155311.ei
+chFileName D:\svlog\20210513150953\CMAC_dlUeTtiInfo_20210513150953.ei
+chFileName D:\svlog\20210513150953\CMAC_dlUeTtiInfo_20210513151242.ei
+chFileName D:\svlog\20210513150953\CMAC_dlUeTtiInfo_20210513151546.ei
+chFileName D:\svlog\s20\CMAC_dlUeTtiInfo_20210513151118.ei
+convert suc
+chFileName D:\svlog\20210513150953\CMAC_dlUeTtiInfo_20210513150953.ei
+chFileName D:\svlog\20210513150953\CMAC_dlUeTtiInfo_20210513151242.ei
+chFileName D:\svlog\20210513150953\CMAC_dlUeTtiInfo_20210513151546.ei

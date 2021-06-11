@@ -258,24 +258,25 @@ class DlSchdUe(DlSchd):
         data = data.set_index(cols[0])
         return data[cols[2]].resample(str(time_bin)+'S').apply('count') 
     
-    def pucch_pc(self, fmt):
+    def pucch_pc(self, fmt=255):
         cols = [
         'AirTime',
         'PUCCH_PC.Format', 
-        'SCHD.u8Tpc',
-        'PUCCH_PC.RptSinr', 
+        #'SCHD.u8Tpc',
+        #'PUCCH_PC.RptSinr', 
         'PUCCH_PC.RptAdjSinr', 
-        'PUCCH_PC.FilterSinr', 
+        #'PUCCH_PC.FilterSinr', 
         'PUCCH_PC.ni', 
         'PUCCH_PC.ant0Pwr', 
-        'PUCCH_PC.ant1Pwr'
+        #'PUCCH_PC.ant1Pwr'
         ]
 
-        tpc_table = [-1, 0, 1, 3]
+        #tpc_table = [-1, 0, 1, 3]
         data = self._log.get_data_of_cols(cols)
-        data = data[data[cols[1]]==fmt]
-        data[cols[2]] = data[cols[2]].apply(lambda x: tpc_table[int(x)] if x <=3 else 0)
-        data.reset_index(inplace=True)
+        if fmt != 255:
+            data = data[data[cols[1]]==fmt]
+        #data[cols[2]] = data[cols[2]].apply(lambda x: tpc_table[int(x)] if x <=3 else 0)
+        #data.reset_index(inplace=True)
         for col in cols[2:]:
             data.plot.scatter(x=cols[0], y=col,figsize=(15,5))
         return data[cols[2:]]

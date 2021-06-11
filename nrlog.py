@@ -463,7 +463,7 @@ class NrFile(object):
         time_col = 'LocalTime'
         if time_col not in cols:
             cols.append(time_col) 
-        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True).fillna(0)
+        rlt = self.get_data_of_cols(cols, val_filter=filters, format_time=True)
         rlt = rlt[cols].set_index(time_col)
         rlt = rlt.resample(str(time_bin)+'S').apply('count') 
         return rlt
@@ -499,9 +499,8 @@ class NrFile(object):
 
 if __name__ == '__main__' :
     #svlog = NrLog(r"D:\sv\20210324", time_interval=['2021/03/23/ 21:37:00', '2021/03/23/ 21:38:00'])
-    svlog = NrLog(r"D:\svlog\20210508181215_2UeSrMax", time_interval=['2021/05/09/ 1:54:52', '2021/05/09/ 1:54:55'])
-    #svlog = NrLog(r"D:\svlog\slice")
-    #cell = svlog.get_cell(1)
+    svlog = NrLog(r"D:\svlog\SrMax", time_interval=['2021/06/10/ 11:52:00', '2021/06/10/ 11:54:00'])
+    cell1 = svlog.get_cell(1)
     #cell._dl.describle_dtx()
     #ue7 = svlog.get_ue(7)
     #ue15 = svlog.get_ue(15)

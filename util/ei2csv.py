@@ -31,7 +31,7 @@ def ei2csv(directory, eifiles):
 
 
 if __name__ == '__main__':
-    directory = r"D:\svlog\slice"
+    directory = r"D:\svlog\20210513150953"
     files = pd.Series(os.listdir(directory))
     eifiles = list(files[files.apply(lambda x: x.endswith(r'.ei') and x.rsplit('.')[0]+r'.csv' not in files)])  
     ei2csv(directory, eifiles)  

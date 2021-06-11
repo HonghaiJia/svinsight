@@ -1,0 +1,5 @@
+chFileName D:\svlog\SrMax\CMAC_dlUeTtiInfo_20210610115147.ei
+chFileName D:\svlog\SrMax\CMAC_dlUeTtiInfo_20210610115210.ei
+chFileName D:\svlog\SrMax\CMAC_dlUeTtiInfo_20210610115158.ei
+chFileName D:\svlog\SrMax\CMAC_ulUeTtiInfo_20210610125124.ei
+convert suc
